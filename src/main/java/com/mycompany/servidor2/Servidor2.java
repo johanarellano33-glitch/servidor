@@ -2,15 +2,23 @@ package com.mycompany.servidor2;
 
 import java.io.*;
 import java.net.*;
+import java.util.*;
 
 public class Servidor2 {
 
     private static final String ARCHIVO_USUARIOS = "usuarios.txt";
+    private static final String ARCHIVO_MENSAJES = "mensajes.txt";
+    
+    // Mapa sincronizado para evitar problemas de concurrencia
+    private static Map<String, List<String>> bandejasDeEntrada = Collections.synchronizedMap(new HashMap<>());
 
     public static void main(String[] args) {
         try {
             ServerSocket socketEspecial = new ServerSocket(8080);
             System.out.println("Servidor esperando conexiones en el puerto 8080...");
+            
+            // Cargar mensajes existentes al iniciar el servidor
+            cargarMensajes();
             
             while (true) {
                 Socket cliente = socketEspecial.accept();
@@ -23,99 +31,131 @@ public class Servidor2 {
                                 new InputStreamReader(cliente.getInputStream())
                         );
                         
-                        String usuario, contrasena, opcion;
+                        String usuario = null, contrasena, opcion;
                         
-                        // Bucle principal del servidor donde se preguntan las opciones al cliente
-                        while (true) {
-                            escritor.println("Bienvenido al servidor.");
-                            escritor.println("Seleccione una opción: ");
-                            escritor.println("1. Registrarse");
-                            escritor.println("2. Iniciar sesión");
-                            escritor.println("3. Salir");
-                            opcion = lectorSocket.readLine();
+                        // Bucle principal del servidor
+                        while ((opcion = lectorSocket.readLine()) != null) {
+                            System.out.println("DEBUG - Opción recibida: '" + opcion + "'");
                             
                             if (opcion.equals("1")) {
-                                // Registro de usuario
-                                escritor.println("Usuario: ");
+                                // REGISTRO DE USUARIO
                                 usuario = lectorSocket.readLine();
-                                escritor.println("Contraseña: ");
                                 contrasena = lectorSocket.readLine();
+                                System.out.println("DEBUG - Registro: Usuario=" + usuario + ", Pass=" + contrasena);
                                 
-                                if (usuarioExiste(usuario)) {
-                                    escritor.println("El usuario ya existe. Por favor, elige otro.");
-                                } else {
-                                    registrarUsuario(usuario, contrasena);
-                                    escritor.println("¡Registro exitoso! Ahora puedes iniciar sesión.");
-                                }
-                            } else if (opcion.equals("2")) {
-                                // Iniciar sesión
-                                escritor.println("Usuario: ");
-                                usuario = lectorSocket.readLine();
-                                escritor.println("Contraseña: ");
-                                contrasena = lectorSocket.readLine();
-                                
-                                if (validarCredenciales(usuario, contrasena)) {
-                                    escritor.println("Bienvenido al servidor, " + usuario + "!");
-                                    escritor.println("Escribe 'salir' para desconectarte.");
-                                    
-                                    // Aquí comenzamos la interacción de mensajes
-                                    String comando;
-                                    while (!(comando = lectorSocket.readLine()).equalsIgnoreCase("salir")) {
-                                        escritor.println("Comando inválido, escribe 'salir' para desconectarte.");
+                                if (usuario != null && contrasena != null) {
+                                    if (usuarioExiste(usuario)) {
+                                        escritor.println("El usuario ya existe. Por favor, elige otro.");
+                                    } else {
+                                        registrarUsuario(usuario, contrasena);
+                                        escritor.println("¡Registro exitoso! Ahora puedes iniciar sesión.");
                                     }
-                                    escritor.println("Desconectando...");
-                                    break; // Salir del bucle principal
                                 } else {
-                                    escritor.println("Usuario o contraseña incorrectos. Por favor, inténtalo de nuevo.");
+                                    escritor.println("Error: Datos incompletos.");
                                 }
+                                
+                            } else if (opcion.equals("2")) {
+                                // INICIAR SESIÓN
+                                usuario = lectorSocket.readLine();
+                                contrasena = lectorSocket.readLine();
+                                System.out.println("DEBUG - Login: Usuario=" + usuario + ", Pass=" + contrasena);
+                                
+                                if (usuario != null && contrasena != null) {
+                                    if (validarCredenciales(usuario, contrasena)) {
+                                        escritor.println("Bienvenido al servidor, " + usuario + "!");
+                                        System.out.println("Usuario " + usuario + " logueado correctamente");
+                                        
+                                        // MENÚ DE MENSAJES
+                                        boolean sesionActiva = true;
+                                        while (sesionActiva) {
+                                            String opcionMenu = lectorSocket.readLine();
+                                            if (opcionMenu == null) break;
+                                            
+                                            System.out.println("DEBUG - Opción menú: '" + opcionMenu + "'");
+                                            
+                                            switch (opcionMenu) {
+                                                case "1":
+                                                    // VER BANDEJA DE ENTRADA
+                                                    List<String> mensajes = bandejasDeEntrada.getOrDefault(usuario, new ArrayList<>());
+                                                    if (mensajes.isEmpty()) {
+                                                        escritor.println("0 mensajes.");
+                                                    } else {
+                                                        escritor.println("Tienes " + mensajes.size() + " mensaje(s):");
+                                                        for (String mensaje : mensajes) {
+                                                            escritor.println(mensaje);
+                                                        }
+                                                        escritor.println("FIN_MENSAJES");
+                                                    }
+                                                    break;
+                                                    
+                                                case "2":
+                                                    // ENVIAR MENSAJE
+                                                    String destinatario = lectorSocket.readLine();
+                                                    String mensaje = lectorSocket.readLine();
+                                                    System.out.println("DEBUG - Mensaje: " + usuario + " -> " + destinatario + ": " + mensaje);
+                                                    
+                                                    if (destinatario != null && mensaje != null) {
+                                                        if (usuarioExiste(destinatario)) {
+                                                            String mensajeCompleto = "De " + usuario + ": " + mensaje;
+                                                            bandejasDeEntrada.computeIfAbsent(destinatario, k -> new ArrayList<>()).add(mensajeCompleto);
+                                                            guardarMensaje(usuario, destinatario, mensaje);
+                                                            escritor.println("Mensaje enviado exitosamente a " + destinatario);
+                                                        } else {
+                                                            escritor.println("Error: El destinatario '" + destinatario + "' no existe.");
+                                                        }
+                                                    } else {
+                                                        escritor.println("Error: Datos incompletos para el mensaje.");
+                                                    }
+                                                    break;
+                                                    
+                                                case "3":
+                                                    // CERRAR SESIÓN
+                                                    escritor.println("Sesión cerrada. ¡Hasta luego " + usuario + "!");
+                                                    sesionActiva = false;
+                                                    System.out.println("Usuario " + usuario + " cerró sesión");
+                                                    break;
+                                                    
+                                                default:
+                                                    escritor.println("Opción inválida. Por favor, elige 1, 2 o 3.");
+                                                    break;
+                                            }
+                                        }
+                                    } else {
+                                        escritor.println("Credenciales incorrectas. Verifica tu usuario y contraseña.");
+                                    }
+                                } else {
+                                    escritor.println("Error: Datos incompletos.");
+                                }
+                                
                             } else if (opcion.equals("3")) {
-                                escritor.println("Desconectando...");
+                                // SALIR
+                                escritor.println("¡Hasta luego! Desconectando del servidor...");
                                 break;
+                                
                             } else {
-                                escritor.println("Opción inválida. Por favor, elige una opción válida.");
+                                escritor.println("Opción inválida. Por favor, elige 1, 2 o 3.");
                             }
                         }
 
                         // Cerrar recursos
+                        System.out.println("Cliente desconectado: " + cliente.getInetAddress());
                         lectorSocket.close();
                         escritor.close();
                         cliente.close();
+                        
                     } catch (IOException e) {
-                        e.printStackTrace();
+                        System.err.println("Error en conexión con cliente: " + e.getMessage());
                     }
                 }).start();
             }
         } catch (IOException e) {
+            System.err.println("Error en el servidor: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
     // Verificar si el usuario ya existe
-    private static boolean usuarioExiste(String usuario) throws IOException {
-        File archivo = new File(ARCHIVO_USUARIOS);
-        if (!archivo.exists()) return false;
-
-        try (BufferedReader reader = new BufferedReader(new FileReader(archivo))) {
-            String linea;
-            while ((linea = reader.readLine()) != null) {
-                if (linea.split(":")[0].equals(usuario)) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    // Registrar usuario en el archivo de texto
-    private static void registrarUsuario(String usuario, String contrasena) throws IOException {
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(ARCHIVO_USUARIOS, true))) {
-            writer.write(usuario + ":" + contrasena);
-            writer.newLine();
-        }
-    }
-
-    // Validar las credenciales de usuario y contraseña
-    private static boolean validarCredenciales(String usuario, String contrasena) throws IOException {
+    private static boolean usuarioExiste(String usuario) {
         File archivo = new File(ARCHIVO_USUARIOS);
         if (!archivo.exists()) return false;
 
@@ -123,11 +163,97 @@ public class Servidor2 {
             String linea;
             while ((linea = reader.readLine()) != null) {
                 String[] partes = linea.split(":");
-                if (partes[0].equals(usuario) && partes[1].equals(contrasena)) {
+                if (partes.length >= 2 && partes[0].trim().equals(usuario)) {
                     return true;
                 }
             }
+        } catch (IOException e) {
+            System.err.println("Error al verificar usuario: " + e.getMessage());
         }
         return false;
+    }
+
+    // Registrar usuario
+    private static synchronized void registrarUsuario(String usuario, String contrasena) {
+        File archivo = new File(ARCHIVO_USUARIOS);
+        try {
+            if (!archivo.exists()) {
+                archivo.createNewFile();
+            }
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(archivo, true))) {
+                writer.write(usuario + ":" + contrasena);
+                writer.newLine();
+                writer.flush();
+            }
+            System.out.println("Usuario registrado: " + usuario);
+        } catch (IOException e) {
+            System.err.println("Error al registrar usuario: " + e.getMessage());
+        }
+    }
+
+    // Validar credenciales
+    private static boolean validarCredenciales(String usuario, String contrasena) {
+        File archivo = new File(ARCHIVO_USUARIOS);
+        if (!archivo.exists()) return false;
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(archivo))) {
+            String linea;
+            while ((linea = reader.readLine()) != null) {
+                String[] partes = linea.split(":");
+                if (partes.length >= 2 && 
+                    partes[0].trim().equals(usuario) && 
+                    partes[1].trim().equals(contrasena)) {
+                    return true;
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Error al validar credenciales: " + e.getMessage());
+        }
+        return false;
+    }
+    
+    // Guardar mensaje en archivo
+    private static synchronized void guardarMensaje(String remitente, String destinatario, String mensaje) {
+        File archivo = new File(ARCHIVO_MENSAJES);
+        try {
+            if (!archivo.exists()) {
+                archivo.createNewFile();
+            }
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(archivo, true))) {
+                writer.write(new Date().toString() + " | " + remitente + " -> " + destinatario + " | " + mensaje);
+                writer.newLine();
+                writer.flush();
+            }
+        } catch (IOException e) {
+            System.err.println("Error al guardar mensaje: " + e.getMessage());
+        }
+    }
+    
+    // Cargar mensajes existentes
+    private static void cargarMensajes() {
+        File archivo = new File(ARCHIVO_MENSAJES);
+        if (!archivo.exists()) return;
+        
+        try (BufferedReader reader = new BufferedReader(new FileReader(archivo))) {
+            String linea;
+            while ((linea = reader.readLine()) != null) {
+                // Formato: fecha | remitente -> destinatario | mensaje
+                String[] partes = linea.split(" \\| ");
+                if (partes.length >= 3) {
+                    String[] usuarios = partes[1].split(" -> ");
+                    if (usuarios.length >= 2) {
+                        String remitente = usuarios[0];
+                        String destinatario = usuarios[1];
+                        String mensaje = partes[2];
+                        
+                        String mensajeCompleto = "De " + remitente + ": " + mensaje;
+                        bandejasDeEntrada.computeIfAbsent(destinatario, k -> new ArrayList<>()).add(mensajeCompleto);
+                    }
+                }
+            }
+            System.out.println("Mensajes cargados desde archivo");
+        } catch (IOException e) {
+            System.err.println("Error al cargar mensajes: " + e.getMessage());
+        }
     }
 }
