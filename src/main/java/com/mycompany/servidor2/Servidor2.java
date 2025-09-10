@@ -40,9 +40,10 @@ public class Servidor2 {
                                 usuario = lectorSocket.readLine();
                                 escritor.println("Contraseña: ");
                                 contrasena = lectorSocket.readLine();
-                                
+                                 
                                 if (usuarioExiste(usuario)) {
                                     escritor.println("El usuario ya existe. Por favor, elige otro.");
+                                    escritor.println("Por favor, inicia sesión.");
                                 } else {
                                     registrarUsuario(usuario, contrasena);
                                     escritor.println("¡Registro exitoso! Ahora puedes iniciar sesión.");
@@ -131,3 +132,4 @@ public class Servidor2 {
         return false;
     }
 }
+
