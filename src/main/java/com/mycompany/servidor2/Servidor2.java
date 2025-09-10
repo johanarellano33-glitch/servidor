@@ -40,10 +40,9 @@ public class Servidor2 {
                                 usuario = lectorSocket.readLine();
                                 escritor.println("Contraseña: ");
                                 contrasena = lectorSocket.readLine();
-                                 
+                                
                                 if (usuarioExiste(usuario)) {
                                     escritor.println("El usuario ya existe. Por favor, elige otro.");
-                                    escritor.println("Por favor, inicia sesión.");
                                 } else {
                                     registrarUsuario(usuario, contrasena);
                                     escritor.println("¡Registro exitoso! Ahora puedes iniciar sesión.");
@@ -59,7 +58,7 @@ public class Servidor2 {
                                     escritor.println("Bienvenido al servidor, " + usuario + "!");
                                     escritor.println("Escribe 'salir' para desconectarte.");
                                     
-                                    // Opción para salir del servidor
+                                    // Aquí comenzamos la interacción de mensajes
                                     String comando;
                                     while (!(comando = lectorSocket.readLine()).equalsIgnoreCase("salir")) {
                                         escritor.println("Comando inválido, escribe 'salir' para desconectarte.");
@@ -132,4 +131,3 @@ public class Servidor2 {
         return false;
     }
 }
-
