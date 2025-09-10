@@ -54,6 +54,8 @@ public class Servidor2 {
                                 escritor.println("Contraseña: ");
                                 contrasena = lectorSocket.readLine();
                                 
+                                System.out.println("Iniciando sesión para: " + usuario + " con contraseña: " + contrasena);  // Debug
+                                
                                 if (validarCredenciales(usuario, contrasena)) {
                                     escritor.println("Bienvenido al servidor, " + usuario + "!");
                                     escritor.println("Escribe 'salir' para desconectarte.");
