@@ -43,38 +43,12 @@ public class Servidor2 {
                                 contrasena = lectorSocket.readLine();
                                 System.out.println("DEBUG - Registro: Usuario=" + usuario + ", Pass=" + contrasena);
                                 
-<<<<<<< HEAD
-                                if (usuarioExiste(usuario)) {
-                                    escritor.println("El usuario ya existe. Por favor, elige otro.");
-                                } else {
-                                    registrarUsuario(usuario, contrasena);
-                                    escritor.println("¡Registro exitoso! Ahora puedes iniciar sesión.");
-                                }
-                            } else if (opcion.equals("2")) {
-                                // Iniciar sesión
-                                escritor.println("Usuario: ");
-                                usuario = lectorSocket.readLine();
-                                escritor.println("Contraseña: ");
-                                contrasena = lectorSocket.readLine();
-                                
-                                System.out.println("Iniciando sesión para: " + usuario + " con contraseña: " + contrasena);  // Debug
-                                
-                                if (validarCredenciales(usuario, contrasena)) {
-                                    escritor.println("Bienvenido al servidor, " + usuario + "!");
-                                    escritor.println("Escribe 'salir' para desconectarte.");
-                                    
-                                    // Aquí comenzamos la interacción de mensajes
-                                    String comando;
-                                    while (!(comando = lectorSocket.readLine()).equalsIgnoreCase("salir")) {
-                                        escritor.println("Comando inválido, escribe 'salir' para desconectarte.");
-=======
                                 if (usuario != null && contrasena != null) {
                                     if (usuarioExiste(usuario)) {
                                         escritor.println("El usuario ya existe. Por favor, elige otro.");
                                     } else {
                                         registrarUsuario(usuario, contrasena);
                                         escritor.println("¡Registro exitoso! Ahora puedes iniciar sesión.");
->>>>>>> main
                                     }
                                 } else {
                                     escritor.println("Error: Datos incompletos.");
