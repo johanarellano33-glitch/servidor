@@ -1,6 +1,3 @@
 gerber:1234
-jiji:123
-3:1
-:1
 1:1
-pablo:1234
+2:gerber
