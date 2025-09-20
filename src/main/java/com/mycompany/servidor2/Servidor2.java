@@ -153,15 +153,39 @@ public class Servidor2 {
                                 } else {
                                     escritor.println("Error: Datos incompletos.");
                                 }
+                                } else if (opcion.equals("3")) {
+    // DAR DE BAJA USUARIO
+    usuario = lectorSocket.readLine();
+    contrasena = lectorSocket.readLine();
+    System.out.println("DEBUG - Baja de usuario: Usuario=" + usuario + ", Pass=" + contrasena);
+    
+    if (usuario != null && contrasena != null) {
+        if (validarCredenciales(usuario, contrasena)) {
+            if (darDeBajaUsuario(usuario)) {
+                // Eliminar también los mensajes del usuario
+                bandejasDeEntrada.remove(usuario);
+                eliminarMensajesDeUsuario(usuario);
+                escritor.println("Usuario dado de baja exitosamente. ¡Hasta luego!");
+                System.out.println("Usuario " + usuario + " dado de baja");
+            } else {
+                escritor.println("Error al dar de baja el usuario. Inténtalo más tarde.");
+            }
+        } else {
+            escritor.println("Credenciales incorrectas. No se puede dar de baja el usuario.");
+        }
+    } else {
+        escritor.println("Error: Datos incompletos.");
+    }
+    
                                 
-                            } else if (opcion.equals("3")) {
+                            } else if (opcion.equals("4")) {
                                 // SALIR
                                 escritor.println("¡Hasta luego! Desconectando del servidor...");
                                 break;
                                 
                             } else {
-                                escritor.println("Opción inválida. Por favor, elige 1, 2 o 3.");
-                            }
+    escritor.println("Opción inválida. Por favor, elige 1, 2, 3 o 4.");  // Cambiar de "1, 2 o 3" a "1, 2, 3 o 4"
+}
                         }
 
                         // Cerrar recursos
@@ -311,4 +335,84 @@ public class Servidor2 {
         System.err.println("Error al actualizar archivo: " + e.getMessage());
     }
    }
+   // Dar de baja usuario
+private static synchronized boolean darDeBajaUsuario(String usuario) {
+    File archivo = new File(ARCHIVO_USUARIOS);
+    if (!archivo.exists()) return false;
+    
+    try {
+        // Leer todos los usuarios excepto el que se va a dar de baja
+        List<String> usuariosActivos = new ArrayList<>();
+        try (BufferedReader reader = new BufferedReader(new FileReader(archivo))) {
+            String linea;
+            while ((linea = reader.readLine()) != null) {
+                String[] partes = linea.split(":");
+                if (partes.length >= 2 && !partes[0].trim().equals(usuario)) {
+                    usuariosActivos.add(linea);
+                }
+            }
+        }
+        
+        // Reescribir el archivo sin el usuario dado de baja
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(archivo, false))) {
+            for (String usuarioActivo : usuariosActivos) {
+                writer.write(usuarioActivo);
+                writer.newLine();
+            }
+            writer.flush();
+        }
+        
+        return true;
+    } catch (IOException e) {
+        System.err.println("Error al dar de baja usuario: " + e.getMessage());
+        return false;
+    }
+}
+
+// Eliminar todos los mensajes relacionados con un usuario
+private static synchronized void eliminarMensajesDeUsuario(String usuario) {
+    File archivo = new File(ARCHIVO_MENSAJES);
+    if (!archivo.exists()) return;
+    
+    try {
+        // Leer mensajes y filtrar los que no involucren al usuario dado de baja
+        List<String> mensajesActivos = new ArrayList<>();
+        try (BufferedReader reader = new BufferedReader(new FileReader(archivo))) {
+            String linea;
+            while ((linea = reader.readLine()) != null) {
+                if (linea.contains(" | ")) {
+                    String[] partes = linea.split(" \\| ");
+                    if (partes.length >= 2) {
+                        String[] usuarios = partes[1].split(" -> ");
+                        if (usuarios.length >= 2) {
+                            String remitente = usuarios[0];
+                            String destinatario = usuarios[1];
+                            if (!remitente.equals(usuario) && !destinatario.equals(usuario)) {
+                                mensajesActivos.add(linea);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Reescribir el archivo sin los mensajes del usuario dado de baja
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(archivo, false))) {
+            for (String mensajeActivo : mensajesActivos) {
+                writer.write(mensajeActivo);
+                writer.newLine();
+            }
+            writer.flush();
+        }
+        
+        // Limpiar las bandejas en memoria
+        for (Map.Entry<String, List<String>> entrada : bandejasDeEntrada.entrySet()) {
+            List<String> mensajes = entrada.getValue();
+            mensajes.removeIf(mensaje -> mensaje.contains("De " + usuario + ":"));
+        }
+        
+    } catch (IOException e) {
+        System.err.println("Error al eliminar mensajes del usuario: " + e.getMessage());
+    }
+}
 }
