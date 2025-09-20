@@ -107,8 +107,35 @@ public class Servidor2 {
                                                         escritor.println("Error: Datos incompletos para el mensaje.");
                                                     }
                                                     break;
+                                                    case "3":
+    // BORRAR MENSAJE
+    List<String> mensajesUsuario = bandejasDeEntrada.getOrDefault(usuario, new ArrayList<>());
+    if (mensajesUsuario.isEmpty()) {
+        escritor.println("No tienes mensajes para borrar.");
+    } else {
+        escritor.println("Tienes " + mensajesUsuario.size() + " mensaje(s):");
+        for (int i = 0; i < mensajesUsuario.size(); i++) {
+            escritor.println((i + 1) + ". " + mensajesUsuario.get(i));
+        }
+        escritor.println("FIN_LISTA_BORRAR");
+        
+        String numeroStr = lectorSocket.readLine();
+        try {
+            int numeroMensaje = Integer.parseInt(numeroStr);
+            if (numeroMensaje > 0 && numeroMensaje <= mensajesUsuario.size()) {
+                String mensajeBorrado = mensajesUsuario.remove(numeroMensaje - 1);
+                actualizarArchivoDeMensajes();
+                escritor.println("Mensaje borrado exitosamente: " + mensajeBorrado);
+            } else {
+                escritor.println("Error: Número de mensaje inválido.");
+            }
+        } catch (NumberFormatException e) {
+            escritor.println("Error: Por favor ingresa un número válido.");
+        }
+    }
+    break;
                                                     
-                                                case "3":
+                                                case "4":
                                                     // CERRAR SESIÓN
                                                     escritor.println("Sesión cerrada. ¡Hasta luego " + usuario + "!");
                                                     sesionActiva = false;
@@ -250,10 +277,38 @@ public class Servidor2 {
                         bandejasDeEntrada.computeIfAbsent(destinatario, k -> new ArrayList<>()).add(mensajeCompleto);
                     }
                 }
+                
             }
             System.out.println("Mensajes cargados desde archivo");
         } catch (IOException e) {
             System.err.println("Error al cargar mensajes: " + e.getMessage());
         }
     }
+
+   private static synchronized void actualizarArchivoDeMensajes() {
+    File archivo = new File(ARCHIVO_MENSAJES);
+    try {
+        File archivoTemp = new File("mensajes_temp.txt");
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(archivoTemp))) {
+            for (Map.Entry<String, List<String>> entrada : bandejasDeEntrada.entrySet()) {
+                String destinatario = entrada.getKey();
+                for (String mensaje : entrada.getValue()) {
+                    if (mensaje.startsWith("De ") && mensaje.contains(": ")) {
+                        String[] partes = mensaje.split(": ", 2);
+                        if (partes.length >= 2) {
+                            String remitente = partes[0].substring(3);
+                            String contenido = partes[1];
+                            writer.write(new Date().toString() + " | " + remitente + " -> " + destinatario + " | " + contenido);
+                            writer.newLine();
+                        }
+                    }
+                }
+            }
+        }
+        if (archivo.exists()) archivo.delete();
+        archivoTemp.renameTo(archivo);
+    } catch (IOException e) {
+        System.err.println("Error al actualizar archivo: " + e.getMessage());
+    }
+   }
 }
