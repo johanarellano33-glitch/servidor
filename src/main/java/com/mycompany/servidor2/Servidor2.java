@@ -177,15 +177,21 @@ public class Servidor2 {
         escritor.println("Error: Datos incompletos.");
     }
     
+    
                                 
-                            } else if (opcion.equals("4")) {
-                                // SALIR
-                                escritor.println("¡Hasta luego! Desconectando del servidor...");
-                                break;
-                                
-                            } else {
-    escritor.println("Opción inválida. Por favor, elige 1, 2, 3 o 4.");  // Cambiar de "1, 2 o 3" a "1, 2, 3 o 4"
+                           } else if (opcion.equals("4")) {
+    // VER LISTA DE USUARIOS
+    enviarListaUsuarios(escritor);
+    
+} else if (opcion.equals("5")) {
+    // SALIR
+    escritor.println("¡Hasta luego! Desconectando del servidor...");
+    break;
+    
+} else {
+    escritor.println("Opción inválida. Por favor, elige 1, 2, 3, 4 o 5.");
 }
+
                         }
 
                         // Cerrar recursos
@@ -390,10 +396,14 @@ private static synchronized void eliminarMensajesDeUsuario(String usuario) {
                             if (!remitente.equals(usuario) && !destinatario.equals(usuario)) {
                                 mensajesActivos.add(linea);
                             }
+                        
                         }
+                        
                     }
                 }
-            }
+            
+           }
+            
         }
         
         // Reescribir el archivo sin los mensajes del usuario dado de baja
@@ -413,6 +423,43 @@ private static synchronized void eliminarMensajesDeUsuario(String usuario) {
         
     } catch (IOException e) {
         System.err.println("Error al eliminar mensajes del usuario: " + e.getMessage());
+    }
+}
+// Enviar lista de usuarios línea por línea
+private static void enviarListaUsuarios(PrintWriter escritor) {
+    File archivo = new File(ARCHIVO_USUARIOS);
+    if (!archivo.exists()) {
+        escritor.println("No hay usuarios registrados.");
+        escritor.println("FIN_LISTA_USUARIOS");
+        return;
+    }
+    
+    try (BufferedReader reader = new BufferedReader(new FileReader(archivo))) {
+        String linea;
+        int contador = 1;
+        boolean hayUsuarios = false;
+        
+        escritor.println("=== USUARIOS REGISTRADOS ===");
+        
+        while ((linea = reader.readLine()) != null) {
+            String[] partes = linea.split(":");
+            if (partes.length >= 1) {
+                escritor.println(contador + ". " + partes[0].trim());
+                contador++;
+                hayUsuarios = true;
+            }
+        }
+        
+        if (!hayUsuarios) {
+            escritor.println("No hay usuarios registrados.");
+        }
+        
+        escritor.println("FIN_LISTA_USUARIOS"); // Marcador de fin
+        
+    } catch (IOException e) {
+        System.err.println("Error al obtener lista de usuarios: " + e.getMessage());
+        escritor.println("Error al obtener la lista de usuarios.");
+        escritor.println("FIN_LISTA_USUARIOS");
     }
 }
 }
