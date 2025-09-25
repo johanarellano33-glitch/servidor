@@ -134,17 +134,21 @@ public class Servidor2 {
         }
     }
     break;
-                                                    
-                                                case "4":
-                                                    // CERRAR SESIÓN
-                                                    escritor.println("Sesión cerrada. ¡Hasta luego " + usuario + "!");
-                                                    sesionActiva = false;
-                                                    System.out.println("Usuario " + usuario + " cerró sesión");
-                                                    break;
-                                                    
-                                                default:
-                                                    escritor.println("Opción inválida. Por favor, elige 1, 2 o 3.");
-                                                    break;
+                                         case "4":
+    // VER LISTA DE USUARIOS
+    enviarListaUsuarios(escritor);
+    break;
+    
+case "5":  // Cambiar de "4" a "5"
+    // CERRAR SESIÓN
+    escritor.println("Sesión cerrada. ¡Hasta luego " + usuario + "!");
+    sesionActiva = false;
+    System.out.println("Usuario " + usuario + " cerró sesión");
+    break;
+    
+default:
+    escritor.println("Opción inválida. Por favor, elige 1, 2, 3, 4 o 5.");  // Cambiar mensaje
+    break;
                                             }
                                         }
                                     } else {
@@ -179,11 +183,9 @@ public class Servidor2 {
     
     
                                 
-                           } else if (opcion.equals("4")) {
-    // VER LISTA DE USUARIOS
-    enviarListaUsuarios(escritor);
+
     
-} else if (opcion.equals("5")) {
+} else if (opcion.equals("4")) {  // Era "5", ahora es "4"
     // SALIR
     escritor.println("¡Hasta luego! Desconectando del servidor...");
     break;
