@@ -8,7 +8,8 @@ public class Servidor2 {
 
     private static final String ARCHIVO_USUARIOS = "usuarios.txt";
     private static final String ARCHIVO_MENSAJES = "mensajes.txt";
-    
+    private static Map<String, Socket> clientesConectados = Collections.synchronizedMap(new HashMap<>());
+private static Map<String, PrintWriter> escritoresClientes = Collections.synchronizedMap(new HashMap<>());
     // Mapa sincronizado para evitar problemas de concurrencia
     private static Map<String, List<String>> bandejasDeEntrada = Collections.synchronizedMap(new HashMap<>());
 
@@ -64,8 +65,12 @@ public class Servidor2 {
                                     if (validarCredenciales(usuario, contrasena)) {
                                         escritor.println("Bienvenido al servidor, " + usuario + "!");
                                         System.out.println("Usuario " + usuario + " logueado correctamente");
+                                       
+
+                                        clientesConectados.put(usuario, cliente);
+
+                                        escritoresClientes.put(usuario, escritor);
                                         
-                                        // MENÚ DE MENSAJES
                                         boolean sesionActiva = true;
                                         while (sesionActiva) {
                                             String opcionMenu = lectorSocket.readLine();
@@ -139,13 +144,35 @@ public class Servidor2 {
     enviarListaUsuarios(escritor);
     break;
     
-case "5":  // Cambiar de "4" a "5"
+case "5":
     // CERRAR SESIÓN
+    clientesConectados.remove(usuario);
+    escritoresClientes.remove(usuario);
     escritor.println("Sesión cerrada. ¡Hasta luego " + usuario + "!");
     sesionActiva = false;
     System.out.println("Usuario " + usuario + " cerró sesión");
     break;
     
+    case "6":
+    // LISTAR ARCHIVOS DE OTRO CLIENTE
+    String clienteObjetivo = lectorSocket.readLine();
+    if (usuarioExiste(clienteObjetivo)) {
+        enviarListaArchivos(escritor, clienteObjetivo, cliente.getInetAddress().getHostAddress());
+    } else {
+        escritor.println("ERROR_USUARIO_NO_EXISTE");
+    }
+    break;
+
+case "7":
+    // SOLICITAR ARCHIVO DE OTRO CLIENTE
+    String clienteOrigen = lectorSocket.readLine();
+    String nombreArchivo = lectorSocket.readLine();
+    if (usuarioExiste(clienteOrigen)) {
+        solicitarArchivo(escritor, clienteOrigen, nombreArchivo, usuario);
+    } else {
+        escritor.println("ERROR_USUARIO_NO_EXISTE");
+    }
+    break;
 default:
     escritor.println("Opción inválida. Por favor, elige 1, 2, 3, 4 o 5.");  // Cambiar mensaje
     break;
@@ -462,6 +489,23 @@ private static void enviarListaUsuarios(PrintWriter escritor) {
         System.err.println("Error al obtener lista de usuarios: " + e.getMessage());
         escritor.println("Error al obtener la lista de usuarios.");
         escritor.println("FIN_LISTA_USUARIOS");
+    }
+}
+private static void enviarListaArchivos(PrintWriter escritor, String clienteObjetivo, String ipSolicitante) {
+    PrintWriter escritorObjetivo = escritoresClientes.get(clienteObjetivo);
+    if (escritorObjetivo != null) {
+        escritorObjetivo.println("SOLICITUD_LISTA_ARCHIVOS:" + ipSolicitante);
+    } else {
+        escritor.println("ERROR_CLIENTE_NO_CONECTADO");
+    }
+}
+
+private static void solicitarArchivo(PrintWriter escritor, String clienteOrigen, String archivo, String solicitante) {
+    PrintWriter escritorOrigen = escritoresClientes.get(clienteOrigen);
+    if (escritorOrigen != null) {
+        escritorOrigen.println("SOLICITUD_ARCHIVO:" + archivo + ":" + solicitante);
+    } else {
+        escritor.println("ERROR_CLIENTE_NO_CONECTADO");
     }
 }
 }
