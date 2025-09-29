@@ -12,6 +12,7 @@ public class Servidor2 {
 private static Map<String, PrintWriter> escritoresClientes = Collections.synchronizedMap(new HashMap<>());
     // Mapa sincronizado para evitar problemas de concurrencia
     private static Map<String, List<String>> bandejasDeEntrada = Collections.synchronizedMap(new HashMap<>());
+private static Map<String, String> respuestasPendientes = Collections.synchronizedMap(new HashMap<>());
 
     public static void main(String[] args) {
         try {
@@ -157,9 +158,16 @@ case "5":
     // LISTAR ARCHIVOS DE OTRO CLIENTE
     String clienteObjetivo = lectorSocket.readLine();
     if (usuarioExiste(clienteObjetivo)) {
-        enviarListaArchivos(escritor, clienteObjetivo, cliente.getInetAddress().getHostAddress());
+        PrintWriter escritorObjetivo = escritoresClientes.get(clienteObjetivo);
+        if (escritorObjetivo != null) {
+            // Enviar solicitud con info del solicitante
+            escritorObjetivo.println("LISTAR_ARCHIVOS_REQUEST:" + usuario);
+            escritor.println("Solicitud enviada a " + clienteObjetivo + ". Esperando respuesta...");
+        } else {
+            escritor.println("ERROR: " + clienteObjetivo + " no está conectado actualmente.");
+        }
     } else {
-        escritor.println("ERROR_USUARIO_NO_EXISTE");
+        escritor.println("ERROR: El usuario '" + clienteObjetivo + "' no existe.");
     }
     break;
 
@@ -216,10 +224,36 @@ default:
     // SALIR
     escritor.println("¡Hasta luego! Desconectando del servidor...");
     break;
-    
+ } else if (opcion.startsWith("RESPUESTA_ARCHIVOS:")) {
+    // Ejemplo: RESPUESTA_ARCHIVOS:usuarioSolicitante
+    String[] partes = opcion.split(":");
+    if (partes.length > 1) {
+        String destinatario = partes[1];
+        PrintWriter escritorDestino = escritoresClientes.get(destinatario);
+        if (escritorDestino != null) {
+            escritorDestino.println("RESPUESTA_ARCHIVOS_INICIO");
+            // Guardar que este cliente (usuario) está enviando archivos a destinatario
+            respuestasPendientes.put(usuario, destinatario);
+        }
+    }
+
 } else {
-    escritor.println("Opción inválida. Por favor, elige 1, 2, 3, 4 o 5.");
+    // Verificar si este cliente está enviando respuesta de archivos
+    if (respuestasPendientes.containsKey(usuario)) {
+        String destinatario = respuestasPendientes.get(usuario);
+        PrintWriter escritorDestino = escritoresClientes.get(destinatario);
+        if (escritorDestino != null) {
+            escritorDestino.println(opcion); // reenviar línea
+            if (opcion.equals("FIN_LISTA_ARCHIVOS")) {
+                respuestasPendientes.remove(usuario); // limpiar estado
+                escritorDestino.println("RESPUESTA_ARCHIVOS_FIN");
+            }
+        }
+    } else {
+        escritor.println("Opción inválida. Por favor, elige 1, 2, 3, 4 o 5.");
+    }
 }
+
 
                         }
 
